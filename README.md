@@ -1,7 +1,22 @@
-Practical Machine Learning
-========================
-Repository for the peer assessment project.
+Practical Machine Learning Project
+==================================
 
+This is a project for the peer assessment activity in the __Practical Machine Learning__ course provided by Johns Hopkins University through Coursera. 
+The purpose is to apply machine learning techniques to model predictions and compare the results from different approaches. 
+
+The following files are included in this repository:
+
+* __README.md__ and __README.html__
+
+	Overall description of the project repository and files. 
+	
+* __CourseProject.Rmd__ and __CourseProject.html__
+
+	R markdown and compiled HTML files describing the analysis.
+       
+* __data/pml-testing.csv__ and __data/pml-training.csv__
+
+	Data files for test and training.
 
 ## Background
 
