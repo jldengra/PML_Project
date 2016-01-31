@@ -1,0 +1,203 @@
+---
+title: "Practical Machine Learning Project"
+output: 
+  html_document:
+    keep_md: true
+---
+
+<BR>
+
+## Loading and preprocessing the data
+
+Firstly, the files with the project data have been downloaded and two dataframes **test** and **training** are loaded from them.
+
+
+```{r DownloadingTheData, echo = FALSE}
+
+# Downloading the data
+
+# Firstly, it is set as working directory the folder where the source file is.
+setwd("D:/Training/Data Science/JHU Specialization/Practical Machine Learning/Project/PML_Project")
+
+# It is set the use of Windows internal funtions for internet access to allow https download
+setInternet2(use = TRUE)
+# The data files are downloaded into the local data folder if they don't exist 
+local.file = "./data/pml-testing.csv"
+if (!file.exists(local.file)){
+        # The data folder is created if it doesn't exist
+        if (!file.exists("./data")) { dir.create("./data") }
+        fileurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+        download.file(fileurl, destfile = local.file)
+}
+local.file = "./data/pml-training.csv"
+if (!file.exists(local.file)){
+        fileurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+        download.file(fileurl, destfile = local.file)
+}
+
+
+```
+
+```{r LoadingTheData, echo = TRUE}
+
+# Loading the data
+training <- read.csv("./data/pml-training.csv")
+testing  <- read.csv("./data/pml-testing.csv")
+
+```
+
+The goal is to predict the "classe" variable in the testing set. Let's see which values are possible.
+
+```{r CheckingPredictedVariable, echo = TRUE}
+
+# Structure and summary statistics of "classe"
+str(training$classe)
+summary(training$classe)
+
+```
+
+
+The "classe" variable is a factor with 5 levels: A, B, C, D and E. According to the documentation, A corresponds to the specified execution of the weight lifting exercise, while the other 4 values correspond to common mistakes.
+
+There are 19622 observations of 160 variables in the training set as opposed to 20 observations of the same variables in the test set. Looking at the loaded data, we can see that the not available values are not denoted with the same value Some variables include values "NA", as avg_roll_belt, others the empty string "", as kurtosis_roll_belt, and others the value "#DIV/0!", as kurtosis_yaw_belt. With the aim of unifiying that values, let's reload the data and fix this:  
+
+```{r ReoadingTheData, echo = TRUE}
+
+# Loading the data again preprocessing NA's for consistence in their representation
+training <- read.csv("./data/pml-training.csv", na.strings = c("NA", "", "#DIV/0!"))
+testing  <- read.csv("./data/pml-testing.csv", na.strings = c("NA", "", "#DIV/0!"))
+
+```
+
+As result of this preprocessing, not only the null values are brought together, but the type of some variables previously casted as factor, are now refined to be numerical or logical, improving the parsing performed by the read.csv function. 
+
+
+We can exclude the first seven variables (X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window) containing some metadata of the experiment as the number of row, user name, timestamp or window, but nothing useful to determine the quality of the exercise. On the other hand, we can clean the data by excluding variables with NA's and variables that have near zero variance, because they are not suitable to be proper predictors. 
+
+```{r Installing.caret, echo = FALSE}
+if (!"caret" %in% installed.packages()[ , 1]) { install.packages("caret") }
+```
+
+```{r Cleaning, echo = TRUE, message = FALSE, results = FALSE}
+
+# Exclusion of the first seven variables with metadata unrelated to the outcome
+training <- training [ , -(1:7)]
+             
+# Exclusion of variables without values
+checkWithoutNAs <- sapply(training, function(x)all(!is.na(x)))
+variablesWithoutNAs <- names(checkWithoutNAs)[names(checkWithoutNAs) 
+                       %in% names(checkWithoutNAs)[checkWithoutNAs]]
+training <- training[ , variablesWithoutNAs]
+
+# Exclusion of variables with near zero variance, if any 
+library(caret)
+variablesWithNearZeroVar <- nearZeroVar(training)
+if (length(variablesWithNearZeroVar) > 0)
+        training <- training[ , -variablesWithNearZeroVar]
+
+```
+
+## Splitting the data
+
+Since the test set will serve for a separate prediction task, let's build for our model evaluations two different training and test sets coming from the original training set, containing 3/4 and 1/4 of the data, respectively. The vector of outcomes for the partition will be the variable "classe" that will be predicted later.
+
+```{r Splitting, echo = TRUE, message = FALSE}
+
+
+
+# Splitting training and test set for model evaluations
+inTrain  <- createDataPartition(training$classe, p = 3/4, list = FALSE)
+trainData <- training[ inTrain, ]
+testData  <- training[ -inTrain, ]
+
+```
+
+## Prediction models and cross validation
+
+
+A Generalized Linear Model is not appropriate for predicting this variable, since GLM models can only use 2-class outcomes, while we need to deal with five available outcomes: A, B, C, D and E. 
+
+We will consider three aproaches: decision trees, linear discriminant analysis and random forest, choosing the one with the best accuracy. A random seed is set to enable the results to be reproducible. 
+
+### CART model
+
+Let's fit a Classification and Regression Tree (CART) model with the rpart method using all the remaining predictor variables.
+
+```{r Installing.rattle, echo = FALSE}
+if (!"rattle" %in% installed.packages()[ , 1]) { install.packages("rattle") }
+if (!"rpart" %in% installed.packages()[ , 1]) { install.packages("rpart") }
+if (!"rpart.plot" %in% installed.packages()[ , 1]) { install.packages("rpart.plot") }
+if (!"MASS" %in% installed.packages()[ , 1]) { install.packages("MASS") }
+if (!"randomForest" %in% installed.packages()[ , 1]) { install.packages("randomForest") }
+```
+
+```{r modelCART, echo = TRUE, message = FALSE, warning = FALSE}
+
+set.seed(201601)
+library(rpart)
+modelCART <- rpart(classe ~ ., data = trainData, method = "class")
+library(rattle)
+fancyRpartPlot(modelCART, sub = "Classification and Regression Tree (CART) model", 
+               cex = 0.6)
+
+```
+
+Let's predict the variable in the test set and evaluate the model by its confusion matrix:
+
+```{r modelCARTprediction, echo = TRUE, message = FALSE}
+
+# Prediction and confusion matrix
+predictionCART <- predict(modelCART, testData, type = "class")
+confusionMatrix(predictionCART, testData$classe)
+
+```
+
+As shown in the confusion matrix, the CART accuracity is about 73.5%, and it is not enough for our assignment because the later quiz will require at last 80% of success in predictions. 
+
+
+### Linear discriminant analysis
+
+
+```{r modelLDA, echo = TRUE, message = FALSE, warning = FALSE}
+
+set.seed(201601)
+library(MASS)
+modelLDA <- lda(classe ~ ., data = trainData)
+predictionLDA <- predict(modelLDA, testData, type = "class")
+confusionMatrix(predictionLDA$class, testData$classe)
+
+# The same result was obtained through caret package training with lda
+# modelLDA <- train(classe ~ ., data = trainData, method = "lda")
+# predictionLDA <- predict(modelLDA, testData)
+# confusionMatrix(predictionLDA, testData$classe)
+
+```
+
+The LDA accuracity is about 70%, even worse than the CART accuracity. We need to evaluate other kind of model for a better fit. 
+
+### Random Forest
+
+```{r modelRF, echo = TRUE, message = FALSE, warning = FALSE}
+
+set.seed(201601)
+library(randomForest)
+modelRF <- randomForest(classe ~ ., data = trainData, importance = FALSE)
+predictionRF <- predict(modelRF, testData)
+confusionMatrix(predictionRF, testData$classe)
+```
+
+At last! we have found a model providing an accuracy above 80%. Random Forest model accuracity is 99,6%, so this is our choice for predicting the variable "classe".
+
+## Prediction 
+
+We will make use of the Random Forest model to predict the 20 values in the testing set for the assignment. These are the outcomes: 
+
+
+```{r FinalPrediction, echo = TRUE, message = FALSE, warning = FALSE}
+
+prediction <- predict(modelRF, testing)
+prediction
+
+```
+
+
