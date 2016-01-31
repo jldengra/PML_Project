@@ -2,7 +2,9 @@ Practical Machine Learning Project
 ==================================
 
 This is a project for the peer assessment activity in the __Practical Machine Learning__ course provided by Johns Hopkins University through Coursera. 
-The purpose is to apply machine learning techniques to model predictions and compare the results from different approaches. 
+The purpose is to apply machine learning techniques to model predictions and compare the results from different approaches. The document with the analysis CourseProject.md is available at the present repository and also through the following link: 
+
+https://github.com/jldengra/PML_Project/blob/master/CourseProject.md
 
 The following files are included in this repository:
 
@@ -10,7 +12,7 @@ The following files are included in this repository:
 
 	Overall description of the project repository and files. 
 	
-* __CourseProject.Rmd__ and __CourseProject.html__
+* __CourseProject.Rmd__, __CourseProject.Rmd__ and __CourseProject.html__
 
 	R markdown and compiled HTML files describing the analysis.
        
